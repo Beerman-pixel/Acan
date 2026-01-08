@@ -11,15 +11,40 @@ class YouTubePlatform(PlatformBase):
         name = self.channel.split('/')[-1]
         return name.replace('@', '')
 
+    def _get_stream_title(self, url):
+        """Holt den aktuellen Titel des Livestreams."""
+        try:
+            cmd = [
+                "yt-dlp", "--get-title", "--no-warnings", "--ignore-errors", url
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            title = result.stdout.strip()
+            # Zeichen entfernen, die in Dateinamen nicht erlaubt sind
+            title = re.sub(r'[\\/*?:"<>|]', "", title)
+            return title if title else "Unbekannter_Titel"
+        except Exception:
+            return "Live_Stream"
+
     def record_live(self):
         clean_name = self._get_clean_name()
         base_out = self.config.output_dir(self.platform_name) / clean_name
         base_out.mkdir(parents=True, exist_ok=True)
         
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = base_out / f"live_{clean_name}_{timestamp}.mp4"
-
         url = self.channel.rstrip("/") + "/live"
+        
+        # 1. Titel abfragen
+        stream_title = self._get_stream_title(url)
+        
+        # 2. Zeitstempel mit Datum UND Uhrzeit (StundeMinute)
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%Y%m%d")
+        time_str = now.strftime("%H%M")
+        
+        # 3. Neues Format: Kanal_Datum_Uhrzeit_Titel
+        filename = f"{clean_name}_{timestamp}_{time_str}_{stream_title}.mp4"
+        output_file = base_out / filename
+
+
         quality = self.config.quality(self.platform_name)
         if "+" in quality: quality = "best"
 
@@ -31,7 +56,7 @@ class YouTubePlatform(PlatformBase):
         ]
         
         try:
-            logging.info(f"[{self.platform_name}] Überwache Live-Status: {clean_name}")
+            logging.info(f"[{self.platform_name}] Aufnahme startet: {filename}")
             return subprocess.Popen(cmd)
         except Exception as e:
             logging.error(f"Fehler bei YouTube Live ({clean_name}): {e}")

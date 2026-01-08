@@ -1,19 +1,21 @@
 check_interval: 60
 
 youtube:
-  enabled: true
+  enabled: false
   output_dir: "~/Downloads/youtube"
   quality: "best"
-  download_existing: false
+  download_existing: true
   monitor_new: true
   record_live: true
-  shorts: false
-  playlists: false
+  shorts: true
+  playlists: true
   chat: true
   channels:
-    - https://www.youtube.com/@WELTVideoTV
+    - 
+
+
 twitch:
-  enabled: false
+  enabled: true
   output_dir: "~/Downloads/twitch"
   quality: "best"
   record_live: true
@@ -21,9 +23,7 @@ twitch:
   download_clips: true
   chat: true
   channels:
-    - asmongold
-    - xqc
-
+    - zackrawrr
 kick:
   enabled: false
   output_dir: "~/Downloads/kick"
@@ -32,4 +32,4 @@ kick:
   download_vods: true
   chat: true
   channels:
-    - tweanks
+    - 
