@@ -1,18 +1,17 @@
 check_interval: 60
 
 youtube:
-  enabled: false
+  enabled: true
   output_dir: "~/Downloads/youtube"
-  quality: "bestvideo+bestaudio"
-  download_existing: true
+  quality: "best"
+  download_existing: false
   monitor_new: true
   record_live: true
-  shorts: true
-  playlists: true
+  shorts: false
+  playlists: false
+  chat: true
   channels:
-    - https://www.youtube.com/@LinusTechTips
-    - https://www.youtube.com/@example
-
+    - https://www.youtube.com/@WELTVideoTV
 twitch:
   enabled: false
   output_dir: "~/Downloads/twitch"
@@ -26,11 +25,11 @@ twitch:
     - xqc
 
 kick:
-  enabled: true
+  enabled: false
   output_dir: "~/Downloads/kick"
   quality: "best"
   record_live: true
   download_vods: true
   chat: true
   channels:
-    - captainhorren
+    - tweanks

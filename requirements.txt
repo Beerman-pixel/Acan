@@ -4,3 +4,4 @@ PyYAML
 curl_cffi
 secretstorage
 chromium
+chat-downloader

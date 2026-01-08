@@ -27,10 +27,12 @@ class KickPlatform(PlatformBase):
         
         try:
             logging.info(f"[{self.platform_name}] Prüfe Live-Status für {self.channel}...")
-            # Popen startet den Prozess und kehrt sofort zurück
-            subprocess.Popen(cmd) 
+            # Wir geben das Popen-Objekt zurück
+            process = subprocess.Popen(cmd)
+            return process 
         except Exception as e:
-            logging.error(f"Fehler beim Starten von Streamlink für {self.channel}: {e}")
+            logging.error(f"Fehler bei {self.channel}: {e}")
+            return None
 
     def download(self):
         """Scannt nach VODs und Clips. Verhindert den Abbruch, wenn Kanal offline ist."""
