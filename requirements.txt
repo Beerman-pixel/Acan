@@ -1,3 +1,6 @@
 yt-dlp
 streamlink
 PyYAML
+curl_cffi
+secretstorage
+chromium

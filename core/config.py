@@ -1,4 +1,5 @@
 import yaml
+import os
 from pathlib import Path
 
 class Config:
@@ -8,21 +9,22 @@ class Config:
 
     def _load(self):
         with open(self.path, "r") as f:
-            return yaml.safe_load(f)
+            content = yaml.safe_load(f)
+            return content if content else {}
 
-    # -------- Global --------
-
-    @property
-    def defaults(self):
-        return self.data.get("defaults", {})
+    def _resolve_path(self, path_str: str) -> Path:
+        if not path_str:
+            return Path("./downloads")
+        # .expanduser() ersetzt das "~", .replace() ersetzt dein "$home"
+        p = str(path_str).replace("$home", str(Path.home())).replace("$HOME", str(Path.home()))
+        return Path(p).expanduser().resolve()
 
     @property
     def check_interval(self):
         return self.data.get("check_interval", 60)
 
-    # -------- Platform helpers --------
-
     def platform(self, name: str) -> dict:
+        # Da youtube/kick/twitch direkt auf oberster Ebene stehen:
         return self.data.get(name, {})
 
     def platform_enabled(self, name: str) -> bool:
@@ -32,15 +34,14 @@ class Config:
         return self.platform(name).get("channels", [])
 
     def output_dir(self, name: str) -> Path:
-        return Path(
-            self.platform(name).get(
-                "output_dir",
-                self.defaults.get("output_dir", "./downloads")
-            )
+        # Sucht output_dir in der Plattform, sonst in defaults, sonst ./downloads
+        raw_path = self.platform(name).get(
+            "output_dir", 
+            self.data.get("defaults", {}).get("output_dir", "./downloads")
         )
+        resolved = self._resolve_path(raw_path)
+        resolved.mkdir(parents=True, exist_ok=True)
+        return resolved
 
     def quality(self, name: str) -> str:
-        return self.platform(name).get(
-            "quality",
-            self.defaults.get("quality", "best")
-        )
+        return self.platform(name).get("quality", "best")
