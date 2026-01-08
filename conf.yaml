@@ -1,0 +1,46 @@
+defaults:
+  output_dir: "/data/downloads"
+  quality: "best"
+
+check_interval: 60
+
+youtube:
+  enabled: true
+  output_dir: "/data/youtube"
+  quality: "bestvideo+bestaudio"
+
+  download_existing: true
+  monitor_new: true
+  record_live: true
+  shorts: true
+  playlists: true
+
+  channels:
+    - https://www.youtube.com/@LinusTechTips
+    - https://www.youtube.com/@example
+
+twitch:
+  enabled: true
+  output_dir: "/data/twitch"
+  quality: "best"
+
+  record_live: true
+  download_vods: true
+  download_clips: true
+  chat: true
+
+  channels:
+    - asmongold
+    - xqc
+
+kick:
+  enabled: true
+  output_dir: "/data/kick"
+  quality: "best"
+
+  record_live: true
+  download_vods: true
+  chat: true
+
+  channels:
+    - trainwreckstv
