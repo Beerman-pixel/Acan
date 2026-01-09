@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import logging
 
-class PlatformBase(ABC):
-    def __init__(self, config, channel):
+class PlatformBase:
+    def __init__(self, config, channel=None): # channel=None macht es optional
         self.config = config
         self.channel = channel
 

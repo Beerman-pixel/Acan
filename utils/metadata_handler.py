@@ -1,22 +1,28 @@
+import os
 import subprocess
-import json
 import logging
 from pathlib import Path
 
-def setup_ganymede_folder(platform, channel_name, stream_title, timestamp):
-    """Erstellt den isolierten Ordner für den Stream."""
-    folder_name = f"{timestamp}_{stream_title}"
-    # Bereinige Ordnername von Sonderzeichen
-    folder_name = "".join([c for c in folder_name if c.isalnum() or c in (' ', '_', '-')]).rstrip()
-    folder_name = folder_name.replace(" ", "_")
+def setup_ganymede_folder(config_output_path, platform, channel_name, stream_title, timestamp):
+    """Erstellt: [config_output_path] / [channel_name] / [timestamp_title]"""
+    # Verhindert Dopplungen, falls der User ~/Downloads/kick in der Config hat
+    root_path = Path(os.path.expanduser(config_output_path)).resolve()
     
-    base_path = Path(f"Downloads/{platform}/{channel_name}/{folder_name}")
-    base_path.mkdir(parents=True, exist_ok=True)
-    return base_path
+    clean_title = "".join([c for c in stream_title if c.isalnum() or c in (' ', '_', '-')]).strip()
+    clean_title = clean_title.replace(" ", "_")[:50]
+    
+    folder_name = f"{timestamp}_{clean_title}"
+    
+    # Hier lag der Fehler: platform wurde zusätzlich eingefügt
+    # Wenn dein Pfad in der Config schon ".../kick" ist, lassen wir platform weg:
+    target_dir = root_path / channel_name / folder_name
+    
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return target_dir, folder_name
 
-def save_stream_metadata(url, folder_path):
-    """Speichert Thumbnail und stream-info.json via yt-dlp."""
-    logging.info(f"[METADATA] Erfasse Stream-Infos in {folder_path}")
+def save_stream_metadata(url, folder_path, base_name):
+    """Speichert Thumbnail und Info-JSON mit dem einheitlichen base_name."""
+    logging.info(f"[METADATA] Lade Infos für {base_name}...")
     
     cmd = [
         "yt-dlp",
@@ -24,15 +30,15 @@ def save_stream_metadata(url, folder_path):
         "--write-info-json",
         "--write-thumbnail",
         "--convert-thumbnails", "jpg",
-        "-o", f"{folder_path}/stream",
+        "-o", f"{folder_path}/{base_name}",
         url
     ]
     
     try:
         subprocess.run(cmd, check=False, capture_output=True)
-        # Umbenennen der info.json zu Ganymede-Standard (optional)
-        info_file = folder_path / "stream.info.json"
-        if info_file.exists():
-            info_file.rename(folder_path / "stream-info.json")
+        # yt-dlp benennt thumbnails oft base_name.jpg oder base_name.webp
+        # Wir korrigieren das ggf. auf base_name-Thumbnail.jpg falls gewünscht,
+        # aber base_name.jpg ist für Ganymede/Plex meist am besten.
+        logging.info(f"[METADATA] Erfolg für {base_name}")
     except Exception as e:
-        logging.error(f"[METADATA] Fehler beim Speichern: {e}")
+        logging.error(f"[METADATA] Fehler: {e}")

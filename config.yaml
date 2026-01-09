@@ -1,10 +1,10 @@
 check_interval: 60
 
 youtube:
-  enabled: false
+  enabled: true
   output_dir: "~/Downloads/youtube"
   quality: "best"
-  download_existing: true
+  download_existing: false
   monitor_new: true
   record_live: true
   shorts: true
@@ -23,9 +23,9 @@ twitch:
   download_clips: true
   chat: true
   channels:
-    - zackrawrr
+    - 
 kick:
-  enabled: false
+  enabled: true
   output_dir: "~/Downloads/kick"
   quality: "best"
   record_live: true

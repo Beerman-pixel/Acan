@@ -1,103 +1,102 @@
 import subprocess
 import logging
-import datetime
+import requests
 import re
 from .base import PlatformBase
 
 class KickPlatform(PlatformBase):
-    platform_name = "kick"
+    def __init__(self, config):
+        # Wir rufen die Basisklasse nur mit config auf
+        super().__init__(config)
+        self.platform_name = "kick"
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+        }
 
-    def _get_clean_name(self):
-        # Extrahiert den Namen aus der URL (z.B. https://kick.com/name -> name)
-        return self.channel.split('/')[-1]
-
-    def _get_stream_title(self, url):
-        """Holt den aktuellen Titel des Kick-Streams via yt-dlp."""
+    def is_online(self, channel_name):
+        """Prüft über die Kick API, ob der Kanal live ist."""
+        url = f"https://kick.com/api/v1/channels/{channel_name}"
         try:
-            # Wir nutzen yt-dlp, um nur den Titel zu extrahieren
-            cmd = [
-                "yt-dlp", "--get-title", "--no-warnings", "--ignore-errors", url
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            title = result.stdout.strip()
-            # Entferne ungültige Dateinamen-Zeichen
-            title = re.sub(r'[\\/*?:"<>|]', "", title)
-            return title if title else "Live_Stream"
+            response = requests.get(url, headers=self.headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("livestream") is not None
+            return False
+        except Exception as e:
+            logging.error(f"[Kick] Fehler beim Online-Check für {channel_name}: {e}")
+            return False
+
+    def _get_full_url(self, channel_name):
+        """Gibt die vollständige URL für den Kanal zurück."""
+        return f"https://kick.com/{channel_name}"
+
+    def _get_stream_title(self, channel_name):
+        """Holt den aktuellen Titel des Kick-Streams via API."""
+        url = f"https://kick.com/api/v1/channels/{channel_name}"
+        try:
+            response = requests.get(url, headers=self.headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                title = data.get("livestream", {}).get("session_title", "Live_Stream")
+                # Ungültige Zeichen entfernen
+                return re.sub(r'[\\/*?:"<>|]', "", title)
         except Exception:
-            return "Live_Stream"
+            pass
+        return "Live_Stream"
 
-    def record_live(self):
-        clean_name = self._get_clean_name()
-        base_out = self.config.output_dir(self.platform_name) / clean_name
-        base_out.mkdir(parents=True, exist_ok=True)
+    def record_live(self, video_path):
+        """
+        Startet die Aufnahme. 
+        Der video_path wird vom Manager (Ganymede-Struktur) vorgegeben.
+        """
+        # Wir extrahieren den Kanalnamen aus dem Pfad oder nutzen die URL
+        # Da der Manager video_path übergibt, nutzen wir diesen direkt
+        url = self._get_full_url(video_path.parent.parent.name) # Holt Kanalname aus Ordnerstruktur
         
-        url = self.channel
-        
-        # 1. Titel abfragen
-        stream_title = self._get_stream_title(url)
-        
-        # 2. Zeitstempel mit Datum und Uhrzeit
-        now = datetime.datetime.now()
-        timestamp = now.strftime("%Y%m%d")
-        time_str = now.strftime("%H%M")
-        
-        # 3. Format: Kanal_Datum_Uhrzeit_Titel
-        filename = f"{clean_name}_{timestamp}_{time_str}_{stream_title}.mp4"
-        output_file = base_out / filename
-
-
         quality = self.config.quality(self.platform_name)
-        # Streamlink braucht 'best' statt 'bestvideo+bestaudio'
         if "+" in quality: quality = "best"
 
         cmd = [
             "streamlink",
             url,
             quality,
-            "-o", str(output_file),
+            "-o", str(video_path),
             "--loglevel", "info",
-            "--retry-streams", "30"
+            "--retry-streams", "30",
+            "--retry-open", "30",
         ]
         
         try:
-            logging.info(f"[{self.platform_name}] Starte Aufnahme: {filename}")
+            logging.info(f"[{self.platform_name}] Starte Aufnahme in: {video_path.name}")
             return subprocess.Popen(cmd)
         except Exception as e:
-            logging.error(f"Fehler bei Kick Live ({clean_name}): {e}")
+            logging.error(f"Fehler bei Kick Live Start: {e}")
             return None
 
-
-    def download(self):
-        """Scannt nach VODs und Clips. Verhindert den Abbruch, wenn Kanal offline ist."""
+    def download(self, channel_name):
+        """Scannt nach VODs und Clips für einen spezifischen Kanal."""
         if not self.config.platform(self.platform_name).get("download_vods", True):
             return
 
-        base_out = self.config.output_dir(self.platform_name) / self.channel
+        # Pfad-Logik für VODs (simpel gehalten)
+        output_root = self.config.platform(self.platform_name).get("output_dir", "~/Downloads/kick")
+        base_out = self.config.path(output_root) / channel_name / "VODs"
         base_out.mkdir(parents=True, exist_ok=True)
         archive_file = base_out / "archive.txt"
 
-        logging.info(f"[{self.platform_name}] Starte VOD-Scan für {self.channel}...")
+        logging.info(f"[{self.platform_name}] Starte VOD-Scan für {channel_name}...")
         
         cmd = [
             "yt-dlp",
             "--ignore-errors",
             "--no-warnings",
             "--download-archive", str(archive_file),
-            "--cookies-from-browser", "chromium",
-            "-o", str(base_out / "%(title)s.%(ext)s"),
-            # WICHTIG: Wir deaktivieren den speziellen Kick-Extraktor für die URL-Erkennung,
-            # damit er nicht versucht, den Live-Status zu prüfen.
-            "--ies", "generic",
-            # Wir fügen /videos hinzu
-            f"https://kick.com/{self.channel}/videos"
+            "-o", str(base_out / "%(upload_date)s_%(title)s.%(ext)s"),
+            f"https://kick.com/{channel_name}/videos"
         ]
 
         try:
             subprocess.run(cmd, check=False)
-            
-            # Falls oben nichts gefunden wurde (weil Kick die Links versteckt),
-            # probieren wir einen zweiten Versuch direkt auf die Video-API,
-            # falls du die Clips auch willst:
-            logging.info(f"[{self.platform_name}] VOD-Scan für {self.channel} abgeschlossen.")
+            logging.info(f"[{self.platform_name}] VOD-Scan für {channel_name} abgeschlossen.")
         except Exception as e:
-            logging.error(f"yt-dlp Fehler bei {self.channel}: {e}")
+            logging.error(f"yt-dlp Fehler bei {channel_name}: {e}")
